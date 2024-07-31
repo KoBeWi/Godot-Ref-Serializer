@@ -3,10 +3,18 @@ class_name RefSerializer
 ##
 ## RefSerializer allows you to register custom types based on RefCounted, serialize them and store in files. The advantage of using RefCounted objects is that they are lighter than Resources and custom serialization allows for more compact storing. The types are not bound to any scripts, so there is no problems with compatibility.
 
+const NOTIFICATION_DESERIALIZED = 2137
+
 static var _types: Dictionary#[StringName, Callable]
 
 ## If [code]false[/code], properties with values equal to their defaults will not be serialized. This has a slight performance impact, but decreases storage size.
 static var serialize_defaults: bool = false
+
+## If [code]true[/code], properties that begin with underscore will not be serialized. This has a slight performance impact, but can be useful for redundant or temporary properties.
+static var skip_underscore_properties: bool = false
+
+## If [code]true[/code], deserialized object will receive [constant NOTIFICATION_DESERIALIZED], which can be used to initialize some values (e.g. properties skipped because of underscore).
+static var send_deserialized_notification: bool = true
 
 ## Registers a custom type. You need to call this before creating or loading any instance of that type. [param constructor] can be any method that returns a [RefCounted] object, but it's most convenient to use [code]new[/code] method of a class.
 ## [codeblock]
@@ -50,6 +58,9 @@ static func serialize_object(object: RefCounted) -> Dictionary:
 			continue
 		
 		var property_name: String = property["name"]
+		if skip_underscore_properties and property_name.begins_with("_"):
+			continue
+		
 		var value: Variant = object.get(property_name)
 		
 		if default and value == default.get(property_name):
@@ -90,6 +101,9 @@ static func deserialize_object(data: Dictionary) -> RefCounted:
 				object.get(property).assign(value)
 			else:
 				object.set(property, value)
+	
+	if send_deserialized_notification:
+		object.notification(NOTIFICATION_DESERIALIZED)
 	
 	return object
 

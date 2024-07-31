@@ -66,7 +66,7 @@ You can serialize the object using:
 ```GDScript
 var data := RefSerializer.serialize_object(item)
 ```
-This method returns a Dictionary that represents the object. It contains `$type` field that holds the object's type and a key for each object's property. Note that RefCounted does not support `@export` annotation, so it just stores all defined properties. By default a property is not stored if it's equal to its default value. You can change this behavior by changing `RefSerializer.serialize_defaults` to `true`. Checking defaults has some performance impact, so you can consider this option if you don't care about storage size.
+This method returns a Dictionary that represents the object. It contains `$type` field that holds the object's type and a key for each object's property. Note that RefCounted does not support `@export` annotation, so it just stores all defined properties.
 
 Serialization is recursive. If your RefCounted has another RefCounted in a variable, including inside Array or a Dictionary, it will be serialized too.
 
@@ -83,6 +83,42 @@ var item: Item = RefSerializer.load_from_text("res://Items/Item001.dat")
 ```
 
 Note that file methods don't have any safeguards. If a file does not exist or has invalid data, it will result in a hard error.
+
+## Customization
+
+RefSerializer has a couple of static properties that affect the serializing behavior. It is recommended to set them before any usage of the class and never change them again. Example customization: `RefSerializer.serialize_defaults = false`.
+
+-  `serialize_defaults` *(default: true)*: If disabled, properties that are equal to their default value (determined when the object is created) will not be serialized. This option saves storage size at a minor cost of performance.
+
+- `skip_underscore_properties` *(default: false)*: If enabled, properties that start with underscore (`_`) will not be serialized. This is useful for redundant/temporary properties or properties that can't be serialized (e.g. Objects).
+
+- `send_deserialized_notification` *(default: true)*: If enabled, when an object is deseralized and after its properties are loaded, it will receive a custom `NOTIFICATION_DESERIALIZED`. If you have helper properties that aren't stored, you can use it to initialize them.
+
+### Notification usage example
+
+Consider a World class with a Dictionary where key is position and value is a Room object. Room is defined like this:
+```GDScript
+class Room:
+    var _position: Vector2
+    var size: Vector2
+```
+It has a helper property `_position`, which is useful to know the position with only Room reference. But since the position is also a key in the Dictionary, there is no reason to store it.
+Room instances are created like this:
+```GDScript
+var room: Room = RefSerializer.create_object(&"Room")
+room._position = some_vector
+room_list[some_vector] = room
+```
+The `_position` is initialized with the object, but since it's not saved, we have to restore it when loading. This is when notification can be used:
+```GDScript
+class World:
+    var room_list: Dictionary
+
+    func _notification(what: int):
+        if what == RefSerializer.NOTIFICATION_DESERIALIZED:
+            for pos in room_list:
+                room_list[pos]._position = pos
+```
 
 ## Closing notes
 

@@ -5,7 +5,8 @@ class_name RefSerializer
 
 const NOTIFICATION_DESERIALIZED = 2137
 
-static var _types: Dictionary#[StringName, Callable]
+static var _types: Dictionary[StringName, Callable]
+static var _default_cache: Dictionary[StringName, RefCounted]
 
 ## If [code]false[/code], properties with values equal to their defaults will not be serialized. This has a slight performance impact, but decreases storage size.
 static var serialize_defaults: bool = false
@@ -24,6 +25,9 @@ static var send_deserialized_notification: bool = true
 ## RefSerializer.register_type(&"Item", Item.new)
 static func register_type(type: StringName, constructor: Callable):
 	_types[type] = constructor
+	
+	if not serialize_defaults:
+		_default_cache[type] = constructor.call()
 
 ## Creates a new instance of a registered [param type]. Only objects created using this method can be serialized.
 ## [codeblock]
@@ -50,7 +54,7 @@ static func serialize_object(object: RefCounted) -> Dictionary:
 	
 	var default: RefCounted
 	if not serialize_defaults:
-		default = create_object(type)
+		default = _default_cache.get(type)
 	
 	data["$type"] = type
 	for property in object.get_property_list():

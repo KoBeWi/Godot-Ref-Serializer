@@ -75,7 +75,7 @@ Deserialization is as easy:
 var item: Item = RefSerializer.deserialize_object(data)
 ```
 
-The data Dictionary can be stored on disk manually or using file methods of RefSerializer. They store the objects directly in a file, either text or binary.
+The data Dictionary can be stored on disk manually or using file methods of RefSerializer. They store the objects directly in a file, either text, JSON or binary.
 
 ```GDScript
 RefSerializer.save_as_text(item, "res://Items/Item001.dat")

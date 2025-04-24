@@ -1,7 +1,7 @@
 class_name RefSerializer
 ## Utility class for registering and serializing light-weight RefCounted-based structs.
 ##
-## RefSerializer allows you to register custom types based on RefCounted, serialize them and store in files. The advantage of using RefCounted objects is that they are lighter than Resources and custom serialization allows for more compact storing. The types are not bound to any scripts, so there is no problems with compatibility.
+## RefSerializer allows you to register custom types based on [RefCounted], serialize them and store in files. The advantage of using RefCounted objects is that they are lighter than Resources and custom serialization allows for more compact storing. The types are not bound to any scripts, so there is no problems with compatibility.
 
 const NOTIFICATION_DESERIALIZED = 2137
 
@@ -73,7 +73,7 @@ static func _serialize_value(value: Variant) -> Variant:
 	if value is RefCounted:
 		return serialize_object(value)
 	elif value is Object:
-		push_error("Objects can't be serialized. Only registered RefCounteds are supported.")
+		assert(false, "Objects can't be serialized. Only registered RefCounteds are supported.")
 		return null
 	elif value is Array:
 		return value.map(func(element: Variant) -> Variant: return _serialize_value(element))
@@ -121,21 +121,33 @@ static func _deserialize_value(value: Variant) -> Variant:
 	
 	return value
 
-## Saves the registered object under the given path. The extension is irrelevant. The object is serialized before saving, using [method serialize_object], and stored in a text format.
+## Saves the registered object under the given path. The extension is irrelevant. The object is serialized before saving, using [method serialize_object], and stored in a text format with [method @GlobalScope.var_to_str].
 static func save_as_text(object: RefCounted, path: String):
 	var data := serialize_object(object)
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	file.store_string(var_to_str(data))
 
-## Saves the registered object under the given path. The extension is irrelevant. The object is serialized before saving, using [method serialize_object], and stored in a binary format.
+## Saves the registered object under the given path. The extension is irrelevant. The object is serialized before saving, using [method serialize_object], and stored as a JSON string using [method JSON.from_native]. [param indent] specifies how the resulting JSON should be indented. You can pass empty [String] to disable indentation and save space.
+static func save_as_json(object: RefCounted, path: String, indent := "\t"):
+	var data := serialize_object(object)
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(JSON.stringify(JSON.from_native(data), indent))
+
+## Saves the registered object under the given path. The extension is irrelevant. The object is serialized before saving, using [method serialize_object], and stored in a binary format with [method FileAccess.store_var].
 static func save_as_binary(object: RefCounted, path: String):
 	var data := serialize_object(object)
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	file.store_var(data)
 
 ## Loads and deserializes an object from a file saved in a text format. Only supports the format saved with [method save_as_text].
+## [br][br][b]Note:[/b] As of now, the method [method @GlobalScope.str_to_var] used internally, allows for deserializing Objects and potentially arbitrary code execution, making it not suitable for save files. If you want to safely store the data as text, use [method save_as_json] and [method load_from_json] instead.
 static func load_from_text(path: String) -> RefCounted:
 	var data: Dictionary = str_to_var(FileAccess.get_file_as_string(path))
+	return deserialize_object(data)
+
+## Loads and deserializes an object from a file saved as a JSON string. Only supports the format saved with [method save_as_json].
+static func load_from_json(path: String) -> RefCounted:
+	var data: Dictionary = JSON.to_native(JSON.parse_string(FileAccess.get_file_as_string(path)))
 	return deserialize_object(data)
 
 ## Loads and deserializes an object from a file saved in a binary format. Only supports the format saved with [method save_as_binary].

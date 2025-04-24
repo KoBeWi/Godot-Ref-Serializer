@@ -1,6 +1,6 @@
 # <img src="Media/Icon.png" width="64" height="64"> Godot Ref Serializer
 
-Helper class to serialize and deserialize light-weight RefCounted objects in Godot Engine.
+Helper class to serialize and deserialize light-weight RefCounted objects in Godot Engine. Requires Godot 4.4 or newer.
 
 ## But why
 

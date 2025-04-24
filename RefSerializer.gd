@@ -35,7 +35,7 @@ static func create_object(type: StringName) -> RefCounted:
 		object.set_meta(&"_type", type)
 		return object
 	
-	push_error("Type not registered: %s" % type)
+	assert(false, "Type not registered: %s" % type)
 	return null
 
 ## Serializes a registered object (created via [method create_object]) into a Dictionary, storing values of its properties. If a property value is equal to its default, it will not be stored unless [member serialize_defaults] is enabled. You can use [method deserialize_object] to re-create the object.
@@ -62,7 +62,6 @@ static func serialize_object(object: RefCounted) -> Dictionary:
 			continue
 		
 		var value: Variant = object.get(property_name)
-		
 		if default and value == default.get(property_name):
 			continue
 		
@@ -90,14 +89,14 @@ static func _serialize_value(value: Variant) -> Variant:
 static func deserialize_object(data: Dictionary) -> RefCounted:
 	var type: StringName = data.get("$type", &"")
 	if type.is_empty():
-		push_error("Object data has no type info" % data)
+		push_error("Object data has no type info.")
 		return null
 	
 	var object := create_object(type)
 	for property: String in data:
 		if not property.begins_with("$"):
 			var value = _deserialize_value(data[property])
-			if value is Array:
+			if value is Array or value is Dictionary:
 				object.get(property).assign(value)
 			else:
 				object.set(property, value)

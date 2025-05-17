@@ -49,6 +49,57 @@ static func create_object(type: StringName) -> RefCounted:
 	assert(false, "Type not registered: %s" % type)
 	return null
 
+## Creates a new instance of [param object]'s type and copies all properties to the new object. The original object needs to have been created with [method create_object] or this method. If [param deep] is [code]true[/code], all [Array] and [Dictionary] properties will be recursively duplicated.
+static func duplicate_object(object: RefCounted, deep := false) -> RefCounted:
+	var type: StringName = object.get_meta(TYPE_META, &"")
+	if type.is_empty():
+		push_error("Object %s has no type info" % object)
+		return null
+	
+	var duplicate := create_object(object.get_meta(TYPE_META))
+	
+	for property in object.get_property_list():
+		if not property["usage"] & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			continue
+		
+		var property_name: StringName = property["name"]
+		if skip_underscore_properties and property_name.begins_with("_"):
+			continue
+		
+		var value: Variant = object.get(property_name)
+		if deep:
+			value = _duplicate_value(value)
+		
+		duplicate.set(property_name, value)
+	
+	return duplicate
+
+static func _duplicate_value(value: Variant) -> Variant:
+	if value is RefCounted:
+		return duplicate_object(value)
+	elif value is Object:
+		assert(false, "Objects can't be serialized. Only registered RefCounteds are supported.")
+		return null
+	elif value is Array:
+		var old_array := value as Array
+		var new_array := Array([], old_array.get_typed_builtin(), old_array.get_typed_class_name(), old_array.get_typed_script())
+		new_array.resize(old_array.size())
+		
+		for i in old_array.size():
+			new_array[i] = _duplicate_value(old_array[i])
+		return new_array
+	elif value is Dictionary:
+		var old_dictionary := value as Dictionary
+		var new_dictionary := Dictionary({},
+			old_dictionary.get_typed_key_builtin(), old_dictionary.get_typed_key_class_name(), old_dictionary.get_typed_key_script(),
+			old_dictionary.get_typed_value_builtin(), old_dictionary.get_typed_value_class_name(), old_dictionary.get_typed_value_script())
+		
+		for key in old_dictionary:
+			new_dictionary[key] = _duplicate_value(old_dictionary[key])
+		return new_dictionary
+	
+	return value
+
 ## Serializes a registered object (created via [method create_object]) into a Dictionary, storing values of its properties. If a property value is equal to its default, it will not be stored unless [member serialize_defaults] is enabled. You can use [method deserialize_object] to re-create the object.
 ## [br][br]This method only supports [RefCounted] objects created with [method create_object]. The objects are serialized recursively if they are stored in any of the properties. If a property value is [Resource] or [Node], it will be serialized as [code]null[/code].
 static func serialize_object(object: RefCounted) -> Dictionary[StringName, Variant]:

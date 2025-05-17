@@ -84,6 +84,8 @@ var item: Item = RefSerializer.load_from_text("res://Items/Item001.dat")
 
 Note that file methods don't have any safeguards. If a file does not exist or has invalid data, it will result in a hard error.
 
+The objects can also be duplicated using `duplicate_object()` method. Like other methods, it only works with objects created with `create_object()`.
+
 ## Customization
 
 RefSerializer has a couple of static properties that affect the serializing behavior. It is recommended to set them before any usage of the class and never change them again. Example customization: `RefSerializer.serialize_defaults = false`.

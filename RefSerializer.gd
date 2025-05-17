@@ -3,7 +3,14 @@ class_name RefSerializer
 ##
 ## RefSerializer allows you to register custom types based on [RefCounted], serialize them and store in files. The advantage of using RefCounted objects is that they are lighter than Resources and custom serialization allows for more compact storing. The types are not bound to any scripts, so there is no problems with compatibility.
 
+## Notification received after deserializing object, if [member send_deserialized_notification] is enabled.
 const NOTIFICATION_DESERIALIZED = 2137
+
+## Dictionary key used to store object's type.
+const TYPE_KEY = &"$type"
+
+## Metadata name assigned to created RefCounted objects.
+const TYPE_META = &"_type"
 
 static var _types: Dictionary[StringName, Callable]
 static var _default_cache: Dictionary[StringName, RefCounted]
@@ -36,7 +43,7 @@ static func create_object(type: StringName) -> RefCounted:
 	var constructor = _types.get(type)
 	if constructor is Callable:
 		var object: RefCounted = constructor.call()
-		object.set_meta(&"_type", type)
+		object.set_meta(TYPE_META, type)
 		return object
 	
 	assert(false, "Type not registered: %s" % type)
@@ -44,10 +51,10 @@ static func create_object(type: StringName) -> RefCounted:
 
 ## Serializes a registered object (created via [method create_object]) into a Dictionary, storing values of its properties. If a property value is equal to its default, it will not be stored unless [member serialize_defaults] is enabled. You can use [method deserialize_object] to re-create the object.
 ## [br][br]This method only supports [RefCounted] objects created with [method create_object]. The objects are serialized recursively if they are stored in any of the properties. If a property value is [Resource] or [Node], it will be serialized as [code]null[/code].
-static func serialize_object(object: RefCounted) -> Dictionary:
-	var data: Dictionary
+static func serialize_object(object: RefCounted) -> Dictionary[StringName, Variant]:
+	var data: Dictionary[StringName, Variant]
 	
-	var type: StringName = object.get_meta(&"_type", &"")
+	var type: StringName = object.get_meta(TYPE_META, &"")
 	if type.is_empty():
 		push_error("Object %s has no type info" % object)
 		return data
@@ -56,12 +63,12 @@ static func serialize_object(object: RefCounted) -> Dictionary:
 	if not serialize_defaults:
 		default = _default_cache.get(type)
 	
-	data["$type"] = type
+	data[TYPE_KEY] = type
 	for property in object.get_property_list():
 		if not property["usage"] & PROPERTY_USAGE_SCRIPT_VARIABLE:
 			continue
 		
-		var property_name: String = property["name"]
+		var property_name: StringName = property["name"]
 		if skip_underscore_properties and property_name.begins_with("_"):
 			continue
 		
@@ -90,20 +97,22 @@ static func _serialize_value(value: Variant) -> Variant:
 	return value
 
 ## Deserializes a Dictionary created using [method serialize_object], returning an instance of its class. The Dictionary can be created manually, it just needs a [code]$type[/code] key with class name, other fields will be used to assign properties.
-static func deserialize_object(data: Dictionary) -> RefCounted:
-	var type: StringName = data.get("$type", &"")
+static func deserialize_object(data: Dictionary[StringName, Variant]) -> RefCounted:
+	var type: StringName = data.get(TYPE_KEY, &"")
 	if type.is_empty():
 		push_error("Object data has no type info.")
 		return null
 	
 	var object := create_object(type)
-	for property: String in data:
-		if not property.begins_with("$"):
-			var value = _deserialize_value(data[property])
-			if value is Array or value is Dictionary:
-				object.get(property).assign(value)
-			else:
-				object.set(property, value)
+	for property in data:
+		if property == TYPE_KEY:
+			continue
+		
+		var value = _deserialize_value(data[property])
+		if value is Array or value is Dictionary:
+			object.get(property).assign(value)
+		else:
+			object.set(property, value)
 	
 	if send_deserialized_notification:
 		object.notification(NOTIFICATION_DESERIALIZED)
@@ -112,7 +121,7 @@ static func deserialize_object(data: Dictionary) -> RefCounted:
 
 static func _deserialize_value(value: Variant) -> Variant:
 	if value is Dictionary:
-		var type: String = value.get("$type", "")
+		var type: StringName = value.get(TYPE_KEY, &"")
 		if not type.is_empty():
 			return deserialize_object(value)
 		else:
@@ -146,16 +155,16 @@ static func save_as_binary(object: RefCounted, path: String):
 ## Loads and deserializes an object from a file saved in a text format. Only supports the format saved with [method save_as_text].
 ## [br][br][b]Note:[/b] As of now, the method [method @GlobalScope.str_to_var] used internally, allows for deserializing Objects and potentially arbitrary code execution, making it not suitable for save files. If you want to safely store the data as text, use [method save_as_json] and [method load_from_json] instead.
 static func load_from_text(path: String) -> RefCounted:
-	var data: Dictionary = str_to_var(FileAccess.get_file_as_string(path))
+	var data: Dictionary[StringName, Variant] = str_to_var(FileAccess.get_file_as_string(path))
 	return deserialize_object(data)
 
 ## Loads and deserializes an object from a file saved as a JSON string. Only supports the format saved with [method save_as_json].
 static func load_from_json(path: String) -> RefCounted:
-	var data: Dictionary = JSON.to_native(JSON.parse_string(FileAccess.get_file_as_string(path)))
+	var data: Dictionary[StringName, Variant] = JSON.to_native(JSON.parse_string(FileAccess.get_file_as_string(path)))
 	return deserialize_object(data)
 
 ## Loads and deserializes an object from a file saved in a binary format. Only supports the format saved with [method save_as_binary].
 static func load_from_binary(path: String) -> RefCounted:
 	var file := FileAccess.open(path, FileAccess.READ)
-	var data: Dictionary = file.get_var()
+	var data: Dictionary[StringName, Variant] = file.get_var()
 	return deserialize_object(data)

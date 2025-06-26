@@ -125,6 +125,7 @@ static func serialize_object(object: RefCounted) -> Dictionary[StringName, Varia
 			continue
 		
 		var property_name: StringName = property_string
+		var value: Variant = object.get(property_name)
 		if default and value == default.get(property_name):
 			continue
 		

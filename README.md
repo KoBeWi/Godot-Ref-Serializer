@@ -22,8 +22,8 @@ RefSerializer provides an alternative for storing data - you can use simple RefC
 The same Item stored as RefCounted:
 ```
 {
-"$type": &"Item",
-"value": 5
+&"$type": &"Item",
+&"value": 5
 }
 ```
 
@@ -45,7 +45,7 @@ var item: Item = RefSerializer.create_object(&"Item")
 ```
 This is because the object needs to know its type and RefSerializer ensures it using `set_meta()`. However, since `create_object()` returns RefCounted, this code results in unsafe lines. If you are type purist then it's a major issue compared to regular classes that allow `var object := Item.new()` in a fully type-safe way.
 
-Serialization only works with registered RefCounted objects. Non-registered RefCounted (i.e. created outside `create_object()`), Resources, or Nodes can't be serialized. This makes the usage limited to very simple struct-like types. Also you can't edit RefCounted objects in the inspector.
+Serialization only works with registered RefCounted objects. Non-registered RefCounted (i.e. created outside `create_object()`), Resources, or Nodes can't be serialized. This makes the usage limited to very simple struct-like types. Also RefCounted objects can't be easily edited in the inspector.
 
 ## Usage
 
@@ -84,7 +84,7 @@ var item: Item = RefSerializer.load_from_text("res://Items/Item001.dat")
 
 Note that file methods don't have any safeguards. If a file does not exist or has invalid data, it will result in a hard error.
 
-The objects can also be duplicated using `duplicate_object()` method. Like other methods, it only works with objects created with `create_object()`.
+The objects can also be duplicated using `duplicate_object()` method. Like other methods, it only works with objects created by RefSerializer.
 
 ## Customization
 

@@ -62,10 +62,11 @@ static func duplicate_object(object: RefCounted, deep := false) -> RefCounted:
 		if not property["usage"] & PROPERTY_USAGE_SCRIPT_VARIABLE:
 			continue
 		
-		var property_name: StringName = property["name"]
-		if skip_underscore_properties and property_name.begins_with("_"):
+		var property_string: String = property["name"]
+		if skip_underscore_properties and property_string.begins_with("_"):
 			continue
 		
+		var property_name: StringName = property_string
 		var value: Variant = object.get(property_name)
 		if deep:
 			value = _duplicate_value(value)
@@ -119,11 +120,11 @@ static func serialize_object(object: RefCounted) -> Dictionary[StringName, Varia
 		if not property["usage"] & PROPERTY_USAGE_SCRIPT_VARIABLE:
 			continue
 		
-		var property_name: StringName = property["name"]
-		if skip_underscore_properties and property_name.begins_with("_"):
+		var property_string: String = property["name"]
+		if skip_underscore_properties and property_string.begins_with("_"):
 			continue
 		
-		var value: Variant = object.get(property_name)
+		var property_name: StringName = property_string
 		if default and value == default.get(property_name):
 			continue
 		
